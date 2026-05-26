@@ -39,7 +39,7 @@
     flex-direction: column;
     max-width: 480px;
     margin: 0 auto;
-    padding: 0 0 90px;
+    padding: 0 0 110px;
   }
 
   /* ── Header ── */
@@ -99,7 +99,7 @@
     display: flex;
     z-index: 100;
     padding: 0 8px;
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 12px);
   }
 
   nav button {
@@ -111,7 +111,7 @@
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
-    padding: 12px 4px 10px;
+    padding: 14px 4px 14px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
