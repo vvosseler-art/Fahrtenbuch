@@ -955,10 +955,10 @@
   </button>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-    <button class="btn-submit" id="btn-export-csv" onclick="exportCSV()" disabled style="font-size:14px;">
+    <button class="btn-submit" id="btn-export-csv" onclick="exportCSV(true)" disabled style="font-size:14px;">
       <span>📊</span> CSV
     </button>
-    <button class="btn-submit" id="btn-export-pdf" onclick="exportPDF()" disabled style="font-size:14px; background:var(--accent-b); color:#fff;">
+    <button class="btn-submit" id="btn-export-pdf" onclick="exportPDF(true)" disabled style="font-size:14px; background:var(--accent-b); color:#fff;">
       <span>📄</span> PDF
     </button>
   </div>
@@ -1676,6 +1676,7 @@ async function loadExportPreview() {
     document.getElementById('export-preview-card').style.display = 'block';
     document.getElementById('btn-export-csv').disabled = false;
     document.getElementById('btn-export-pdf').disabled = false;
+
   } catch (e) {
     showToast('Fehler beim Laden', true);
   }
@@ -1684,46 +1685,69 @@ async function loadExportPreview() {
   btn.disabled = false;
 }
 
-function exportCSV() {
+function groupByMonth(data) {
+  const months = {};
+  data.forEach(d => {
+    const key = d.datum.substring(0, 7); // YYYY-MM
+    if (!months[key]) months[key] = [];
+    months[key].push(d);
+  });
+  return months;
+}
+
+function exportCSV(byMonth) {
   if (!exportData.length) return;
   const from = document.getElementById('export-from').value;
   const to = document.getElementById('export-to').value;
+  const header = ['Datum', 'Wochentag', 'Typ', 'Kilometer', 'Fahrzeit (min)', 'Km-Geld (€)'];
+  const rows = [header];
 
-  const rows = [['Datum', 'Wochentag', 'Typ', 'Kilometer', 'Fahrzeit (min)', 'Km-Geld (€)']];
-  exportData.forEach(d => {
-    const date = new Date(d.datum);
-    const wochentag = date.toLocaleDateString('de-DE', { weekday: 'long' });
-    const geld = d.typ === 'aussendienst' && d.km
-      ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',')
-      : '';
-    rows.push([
-      date.toLocaleDateString('de-DE'),
-      wochentag,
-      d.typ === 'aussendienst' ? 'Außendienst' : 'TSC',
-      d.km || '',
-      d.fahrzeit_minuten || '',
-      geld
-    ]);
-  });
+  const buildRows = (data) => {
+    data.forEach(d => {
+      const date = new Date(d.datum);
+      const wochentag = date.toLocaleDateString('de-DE', { weekday: 'long' });
+      const geld = d.typ === 'aussendienst' && d.km
+        ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',') : '';
+      rows.push([date.toLocaleDateString('de-DE'), wochentag,
+        d.typ === 'aussendienst' ? 'Außendienst' : 'TSC',
+        d.km || '', d.fahrzeit_minuten || '', geld]);
+    });
+  };
 
-  // Summary row
+  if (byMonth) {
+    const months = groupByMonth(exportData);
+    Object.keys(months).sort().forEach(key => {
+      const [y, m] = key.split('-');
+      const label = new Date(y, m - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+      rows.push([`── ${label} ──`, '', '', '', '', '']);
+      buildRows(months[key]);
+      const mKm = months[key].filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+      const mGeld = (mKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
+      const mAD = months[key].filter(d => d.typ === 'aussendienst').length;
+      const mTSC = months[key].filter(d => d.typ === 'tsc').length;
+      rows.push([`Summe ${label}`, `AD:${mAD} TSC:${mTSC}`, '', mKm, '', mGeld]);
+      rows.push([]);
+    });
+  } else {
+    buildRows(exportData);
+  }
+
   const totalKm = exportData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
   const totalGeld = (totalKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
-  rows.push([]);
-  rows.push(['Gesamt', '', '', totalKm, '', totalGeld]);
+  rows.push(['GESAMT', '', '', totalKm, '', totalGeld]);
 
   const csv = rows.map(r => r.map(v => `"${v}"`).join(';')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `fahrtenbuch_${from}_${to}.csv`;
+  a.download = `fahrtenbuch_${byMonth ? 'monat_' : ''}${from}_${to}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('✓ CSV heruntergeladen');
 }
 
-function exportPDF() {
+function exportPDF(byMonth) {
   if (!exportData.length) return;
   const from = document.getElementById('export-from').value;
   const to = document.getElementById('export-to').value;
@@ -1736,14 +1760,13 @@ function exportPDF() {
   const totalKm = exportData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
   const totalGeld = (totalKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
 
-  const rows = exportData.map(d => {
+  const buildPdfRows = (data) => data.map(d => {
     const date = new Date(d.datum).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
     const typ = d.typ === 'aussendienst' ? '🚗 Außendienst' : '🏢 TSC';
     const km = d.km ? d.km + ' km' : '–';
     const zeit = d.fahrzeit_minuten ? d.fahrzeit_minuten + ' min' : '–';
     const geld = d.typ === 'aussendienst' && d.km
-      ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',') + ' €'
-      : '–';
+      ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',') + ' €' : '–';
     const bg = d.typ === 'aussendienst' ? '#fff8e8' : '#f0f4ff';
     return `<tr style="background:${bg}">
       <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px;">${date}</td>
@@ -1753,6 +1776,26 @@ function exportPDF() {
       <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px; text-align:right; font-weight:700; color:#c07000;">${geld}</td>
     </tr>`;
   }).join('');
+
+  let rows = '';
+  if (byMonth) {
+    const months = groupByMonth(exportData);
+    Object.keys(months).sort().forEach(key => {
+      const [y, m] = key.split('-');
+      const label = new Date(y, m - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+      const mData = months[key];
+      const mKm = mData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+      const mGeld = (mKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
+      const mAD = mData.filter(d => d.typ === 'aussendienst').length;
+      const mTSC = mData.filter(d => d.typ === 'tsc').length;
+      rows += `<tr><td colspan="5" style="background:#333; color:#fff; padding:8px 10px; font-weight:bold; font-size:13px;">${label}</td></tr>`;
+      rows += buildPdfRows(mData);
+      rows += `<tr style="background:#f0f0f0;"><td style="padding:7px 10px; font-size:12px; font-weight:bold;">Summe ${label}</td><td style="padding:7px 10px; font-size:12px;">AD: ${mAD} &nbsp; TSC: ${mTSC}</td><td style="padding:7px 10px; text-align:right; font-size:12px; font-weight:bold;">${mKm} km</td><td></td><td style="padding:7px 10px; text-align:right; font-size:12px; font-weight:bold; color:#207040;">${mGeld} €</td></tr>`;
+      rows += `<tr><td colspan="5" style="padding:4px;"></td></tr>`;
+    });
+  } else {
+    rows = buildPdfRows(exportData);
+  }
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
