@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fahrtenbuch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --accent-a: #f0c040;
+    --accent-b: #5b8fff;
+    --text: #f0eff4;
+    --muted: #7a7a8c;
+    --danger: #ff5a5a;
+    --success: #4ddb8a;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 90px;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .header-title .label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .header-title h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .header-title h1 span { color: var(--accent-a); }
+
+  .date-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    margin-top: 4px;
+  }
+
+  /* ── Nav Tabs ── */
+  nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+    padding: 0 8px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  nav button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 12px 4px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color .2s;
+  }
+
+  nav button .icon { font-size: 20px; line-height: 1; }
+  nav button.active { color: var(--accent-a); }
+
+  /* ── Pages ── */
+  .page { display: none; padding: 20px; flex-direction: column; gap: 16px; }
+  .page.active { display: flex; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+  }
+
+  /* ── Type Toggle ── */
+  .type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .type-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all .18s ease;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+  }
+
+  .type-btn .t-icon { font-size: 26px; }
+  .type-btn .t-label { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+  .type-btn .t-sub { font-size: 10px; font-family: 'DM Mono', monospace; }
+
+  .type-btn.selected-ad {
+    background: rgba(240,192,64,.08);
+    border-color: var(--accent-a);
+    color: var(--accent-a);
+  }
+
+  .type-btn.selected-tsc {
+    background: rgba(91,143,255,.08);
+    border-color: var(--accent-b);
+    color: var(--accent-b);
+  }
+
+  /* ── Inputs ── */
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-group label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .input-group input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    padding: 14px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color .18s;
+    -webkit-appearance: none;
+  }
+
+  .input-group input:focus { border-color: var(--accent-a); }
+  .input-group input::placeholder { color: var(--border); }
+
+  .input-group.full { grid-column: 1/-1; }
+
+  /* ── KM Geld Preview ── */
+  .km-preview {
+    background: linear-gradient(135deg, rgba(240,192,64,.1) 0%, rgba(240,192,64,.03) 100%);
+    border: 1px solid rgba(240,192,64,.25);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .km-preview.hidden { display: none; }
+
+  .km-preview .km-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .km-preview .km-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent-a);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .km-preview .km-value span {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  /* ── Submit Button ── */
+  .btn-submit {
+    background: var(--accent-a);
+    color: #0f0f11;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 18px;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity .18s, transform .1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-submit:active { transform: scale(.97); opacity: .85; }
+  .btn-submit:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-submit.tsc {
+    background: var(--accent-b);
+    color: #fff;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--success);
+    color: #0f0f11;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px 24px;
+    border-radius: 50px;
+    z-index: 999;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .toast.error { background: var(--danger); color: #fff; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Stats Page ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-card .s-icon { font-size: 22px; margin-bottom: 4px; }
+  .stat-card .s-value { font-size: 28px; font-weight: 800; font-family: 'DM Mono', monospace; }
+  .stat-card .s-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .stat-card.ad .s-value { color: var(--accent-a); }
+  .stat-card.tsc .s-value { color: var(--accent-b); }
+  .stat-card.km .s-value { color: var(--success); }
+  .stat-card.full { grid-column: 1/-1; }
+
+  .year-selector {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+  }
+
+  .year-selector button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .year-selector .year-val {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── History ── */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .history-item .h-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .history-item.ad .h-dot { background: var(--accent-a); }
+  .history-item.tsc .h-dot { background: var(--accent-b); }
+
+  .history-item .h-info { flex: 1; }
+
+  .history-item .h-date {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .history-item .h-type {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .history-item.ad .h-type { color: var(--accent-a); }
+  .history-item.tsc .h-type { color: var(--accent-b); }
+
+  .history-item .h-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .history-item .h-km { font-size: 15px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    opacity: .5;
+    transition: opacity .2s;
+  }
+  .delete-btn:hover { opacity: 1; color: var(--danger); }
+
+  /* ── Settings ── */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .settings-row .s-desc {
+    flex: 1;
+  }
+
+  .settings-row .s-desc .s-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .settings-row .s-desc .s-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .settings-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--accent-a);
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    padding: 10px 12px;
+    width: 90px;
+    text-align: right;
+    outline: none;
+    transition: border-color .18s;
+    -webkit-appearance: none;
+  }
+
+  .settings-input:focus { border-color: var(--accent-a); }
+
+  .btn-save {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 12px 18px;
+    cursor: pointer;
+    width: 100%;
+    transition: background .2s, border-color .2s;
+  }
+
+  .btn-save:hover { background: var(--border); }
+  .btn-save.saved { border-color: var(--success); color: var(--success); }
+
+  .loading {
+    text-align: center;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 20px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 30px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  .month-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .month-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .month-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    width: 28px;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 18px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .bar-ad { background: var(--accent-a); transition: width .4s ease; }
+  .bar-tsc { background: var(--accent-b); transition: width .4s ease; }
+
+  .bar-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Page: Eintrag -->
+<section class="page active" id="page-eintrag">
+  <header style="padding:0; margin-bottom:4px;">
+    <div class="header-title">
+      <span class="label">Tageserfassung</span>
+      <h1>Fahr<span>ten</span>buch</h1>
+    </div>
+    <div class="date-badge" id="dateBadge"></div>
+  </header>
+
+  <!-- Typ Auswahl -->
+  <div class="card">
+    <div class="card-label">Arbeitseinsatz</div>
+    <div class="type-toggle">
+      <button class="type-btn" id="btn-ad" onclick="selectType('aussendienst')">
+        <span class="t-icon">🚗</span>
+        <span class="t-label">Außendienst</span>
+        <span class="t-sub">km-Geld ✓</span>
+      </button>
+      <button class="type-btn" id="btn-tsc" onclick="selectType('tsc')">
+        <span class="t-icon">🏢</span>
+        <span class="t-label">TSC</span>
+        <span class="t-sub">kein km-Geld</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Eingaben -->
+  <div class="card">
+    <div class="card-label">Details</div>
+    <div class="input-row">
+      <div class="input-group" id="km-group">
+        <label>Kilometer</label>
+        <input type="number" inputmode="numeric" id="inp-km" placeholder="0" min="0">
+      </div>
+      <div class="input-group">
+        <label>Fahrzeit (min)</label>
+        <input type="number" inputmode="numeric" id="inp-zeit" placeholder="0" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- KM Geld Vorschau -->
+  <div class="km-preview hidden" id="km-preview">
+    <div>
+      <div class="km-label">Km-Geld heute</div>
+      <div style="font-size:11px; color:var(--muted); font-family:'DM Mono',monospace;" id="km-preview-sub"></div>
+    </div>
+    <div class="km-value" id="km-preview-val">0,00 <span>€</span></div>
+  </div>
+
+  <!-- Submit -->
+  <button class="btn-submit" id="btn-submit" onclick="submitEintrag()" disabled>
+    <span>💾</span> Eintrag speichern
+  </button>
+</section>
+
+<!-- Page: Auswertung -->
+<section class="page" id="page-auswertung">
+  <header style="padding:0; margin-bottom:4px;">
+    <div class="header-title">
+      <span class="label">Statistik</span>
+      <h1>Aus<span>wertung</span></h1>
+    </div>
+  </header>
+
+  <!-- Jahr Auswahl -->
+  <div class="year-selector">
+    <button onclick="changeYear(-1)">‹</button>
+    <span class="year-val" id="statsYear"></span>
+    <button onclick="changeYear(1)">›</button>
+  </div>
+
+  <!-- Stats Karten -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card ad">
+      <span class="s-icon">🚗</span>
+      <span class="s-value" id="stat-ad-days">–</span>
+      <span class="s-label">Außendienst Tage</span>
+    </div>
+    <div class="stat-card tsc">
+      <span class="s-icon">🏢</span>
+      <span class="s-value" id="stat-tsc-days">–</span>
+      <span class="s-label">TSC Tage</span>
+    </div>
+    <div class="stat-card km">
+      <span class="s-icon">📍</span>
+      <span class="s-value" id="stat-total-km">–</span>
+      <span class="s-label">Gesamt km</span>
+    </div>
+    <div class="stat-card full" style="background: linear-gradient(135deg, rgba(240,192,64,.08), rgba(240,192,64,.02)); border-color: rgba(240,192,64,.2);">
+      <span class="s-icon">💰</span>
+      <span class="s-value" style="color: var(--accent-a); font-size:32px;" id="stat-total-geld">–</span>
+      <span class="s-label">Km-Geld gesamt</span>
+    </div>
+  </div>
+
+  <!-- Monatsübersicht -->
+  <div class="card">
+    <div class="card-label">Monatsverteilung</div>
+    <div class="month-bar-wrap" id="monthBars">
+      <div class="loading">Lade Daten…</div>
+    </div>
+    <div style="display:flex; gap:16px; margin-top:12px;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-family:'DM Mono',monospace;">
+        <div style="width:10px;height:10px;border-radius:2px;background:var(--accent-a);"></div> Außendienst
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-family:'DM Mono',monospace;">
+        <div style="width:10px;height:10px;border-radius:2px;background:var(--accent-b);"></div> TSC
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Page: Verlauf -->
+<section class="page" id="page-verlauf">
+  <header style="padding:0; margin-bottom:4px;">
+    <div class="header-title">
+      <span class="label">Historie</span>
+      <h1>Ver<span>lauf</span></h1>
+    </div>
+  </header>
+  <div class="history-list" id="historyList">
+    <div class="loading">Lade Einträge…</div>
+  </div>
+</section>
+
+<!-- Page: Einstellungen -->
+<section class="page" id="page-settings">
+  <header style="padding:0; margin-bottom:4px;">
+    <div class="header-title">
+      <span class="label">Konfiguration</span>
+      <h1>Ein<span>stellungen</span></h1>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-label">Km-Geld</div>
+    <div class="settings-row">
+      <div class="s-desc">
+        <div class="s-title">Vergütung pro Kilometer</div>
+        <div class="s-sub">aktuell gültige Rate</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <input class="settings-input" type="number" inputmode="numeric" id="inp-kmcent" min="1" max="200">
+        <span style="font-family:'DM Mono',monospace; color:var(--muted); font-size:13px;">ct/km</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-save" id="btn-save-settings" onclick="saveSettings()">
+    Einstellungen speichern
+  </button>
+
+  <div class="card" style="margin-top:4px;">
+    <div class="card-label">Info</div>
+    <div style="font-size:13px; color:var(--muted); font-family:'DM Mono',monospace; line-height:1.6;">
+      Km-Geld = km × cent/km<br>
+      Nur Außendienst-Fahrten<br>
+      werden vergütet.
+    </div>
+  </div>
+</section>
+
+<!-- Bottom Nav -->
+<nav>
+  <button class="active" onclick="showPage('eintrag', this)">
+    <span class="icon">✏️</span>Eintrag
+  </button>
+  <button onclick="showPage('auswertung', this)">
+    <span class="icon">📊</span>Auswertung
+  </button>
+  <button onclick="showPage('verlauf', this)">
+    <span class="icon">📋</span>Verlauf
+  </button>
+  <button onclick="showPage('settings', this)">
+    <span class="icon">⚙️</span>Einstellungen
+  </button>
+</nav>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://csncferutyedahhprrgs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Rg0V_PrbAfX41QL9txNzsA_ZBzYp9jn';
+
+const headers = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Prefer': 'return=representation'
+};
+
+// ── State ────────────────────────────────────────────────────────────────
+let selectedType = null;
+let kmGeldCent = 40;
+let statsYear = new Date().getFullYear();
+
+// ── Init ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  updateDateBadge();
+  await loadSettings();
+  setupInputListeners();
+  document.getElementById('statsYear').textContent = statsYear;
+});
+
+function updateDateBadge() {
+  const now = new Date();
+  const opts = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
+  document.getElementById('dateBadge').textContent = now.toLocaleDateString('de-DE', opts);
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'auswertung') loadStats();
+  if (name === 'verlauf') loadHistory();
+}
+
+// ── Type Selection ────────────────────────────────────────────────────────
+function selectType(type) {
+  selectedType = type;
+  document.getElementById('btn-ad').classList.remove('selected-ad');
+  document.getElementById('btn-tsc').classList.remove('selected-tsc');
+  const kmGroup = document.getElementById('km-group');
+
+  if (type === 'aussendienst') {
+    document.getElementById('btn-ad').classList.add('selected-ad');
+    document.getElementById('btn-submit').className = 'btn-submit';
+    document.getElementById('btn-submit').innerHTML = '<span>💾</span> Eintrag speichern';
+    kmGroup.style.opacity = '1';
+    document.getElementById('inp-km').disabled = false;
+  } else {
+    document.getElementById('btn-tsc').classList.add('selected-tsc');
+    document.getElementById('btn-submit').className = 'btn-submit tsc';
+    document.getElementById('btn-submit').innerHTML = '<span>💾</span> Eintrag speichern';
+    kmGroup.style.opacity = '0.4';
+    document.getElementById('inp-km').disabled = true;
+    document.getElementById('inp-km').value = '';
+    document.getElementById('km-preview').classList.add('hidden');
+  }
+  updateSubmitState();
+  updateKmPreview();
+}
+
+// ── Input Listeners ───────────────────────────────────────────────────────
+function setupInputListeners() {
+  document.getElementById('inp-km').addEventListener('input', () => {
+    updateKmPreview();
+    updateSubmitState();
+  });
+  document.getElementById('inp-zeit').addEventListener('input', updateSubmitState);
+}
+
+function updateSubmitState() {
+  const btn = document.getElementById('btn-submit');
+  const hasType = selectedType !== null;
+  const hasZeit = document.getElementById('inp-zeit').value.trim() !== '';
+  btn.disabled = !(hasType && hasZeit);
+}
+
+function updateKmPreview() {
+  const km = parseInt(document.getElementById('inp-km').value) || 0;
+  const preview = document.getElementById('km-preview');
+
+  if (selectedType === 'aussendienst' && km > 0) {
+    const geld = (km * kmGeldCent) / 100;
+    document.getElementById('km-preview-val').innerHTML =
+      geld.toFixed(2).replace('.', ',') + ' <span>€</span>';
+    document.getElementById('km-preview-sub').textContent =
+      `${km} km × ${kmGeldCent} ct`;
+    preview.classList.remove('hidden');
+  } else {
+    preview.classList.add('hidden');
+  }
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/einstellungen?id=eq.1`, { headers });
+    const data = await res.json();
+    if (data && data[0]) {
+      kmGeldCent = data[0].km_geld_cent;
+      document.getElementById('inp-kmcent').value = kmGeldCent;
+    } else {
+      document.getElementById('inp-kmcent').value = 40;
+    }
+  } catch (e) {
+    document.getElementById('inp-kmcent').value = kmGeldCent;
+  }
+}
+
+async function saveSettings() {
+  const val = parseInt(document.getElementById('inp-kmcent').value);
+  if (!val || val < 1) { showToast('Ungültiger Wert', true); return; }
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/einstellungen?id=eq.1`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ km_geld_cent: val })
+    });
+
+    if (res.ok) {
+      kmGeldCent = val;
+      updateKmPreview();
+      const btn = document.getElementById('btn-save-settings');
+      btn.textContent = '✓ Gespeichert';
+      btn.classList.add('saved');
+      setTimeout(() => {
+        btn.textContent = 'Einstellungen speichern';
+        btn.classList.remove('saved');
+      }, 2000);
+    } else {
+      showToast('Fehler beim Speichern', true);
+    }
+  } catch (e) {
+    showToast('Verbindungsfehler', true);
+  }
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────
+async function submitEintrag() {
+  const km = selectedType === 'aussendienst'
+    ? (parseInt(document.getElementById('inp-km').value) || null)
+    : null;
+  const zeit = parseInt(document.getElementById('inp-zeit').value) || null;
+
+  if (!selectedType || !zeit) return;
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> Speichere…';
+
+  const payload = {
+    datum: new Date().toISOString().split('T')[0],
+    typ: selectedType,
+    km: km,
+    fahrzeit_minuten: zeit
+  };
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/fahrten`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok || res.status === 201) {
+      showToast('✓ Eintrag gespeichert!');
+      // Reset
+      selectedType = null;
+      document.getElementById('btn-ad').classList.remove('selected-ad');
+      document.getElementById('btn-tsc').classList.remove('selected-tsc');
+      document.getElementById('inp-km').value = '';
+      document.getElementById('inp-zeit').value = '';
+      document.getElementById('inp-km').disabled = false;
+      document.getElementById('km-group').style.opacity = '1';
+      document.getElementById('km-preview').classList.add('hidden');
+      btn.innerHTML = '<span>💾</span> Eintrag speichern';
+      btn.className = 'btn-submit';
+    } else {
+      const err = await res.json();
+      showToast('Fehler: ' + (err.message || res.status), true);
+    }
+  } catch (e) {
+    showToast('Verbindungsfehler', true);
+  }
+
+  btn.disabled = true;
+  updateSubmitState();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats() {
+  document.getElementById('stat-ad-days').textContent = '–';
+  document.getElementById('stat-tsc-days').textContent = '–';
+  document.getElementById('stat-total-km').textContent = '–';
+  document.getElementById('stat-total-geld').textContent = '–';
+  document.getElementById('monthBars').innerHTML = '<div class="loading">Lade Daten…</div>';
+
+  try {
+    const from = `${statsYear}-01-01`;
+    const to = `${statsYear}-12-31`;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/fahrten?datum=gte.${from}&datum=lte.${to}&order=datum.asc`,
+      { headers }
+    );
+    const data = await res.json();
+
+    const adDays = data.filter(d => d.typ === 'aussendienst').length;
+    const tscDays = data.filter(d => d.typ === 'tsc').length;
+    const totalKm = data.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+    const totalGeld = (totalKm * kmGeldCent) / 100;
+
+    document.getElementById('stat-ad-days').textContent = adDays;
+    document.getElementById('stat-tsc-days').textContent = tscDays;
+    document.getElementById('stat-total-km').textContent = totalKm.toLocaleString('de-DE');
+    document.getElementById('stat-total-geld').textContent =
+      totalGeld.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+    renderMonthBars(data);
+  } catch (e) {
+    document.getElementById('monthBars').innerHTML = '<div class="empty">Fehler beim Laden</div>';
+  }
+}
+
+function renderMonthBars(data) {
+  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const counts = Array.from({ length: 12 }, () => ({ ad: 0, tsc: 0 }));
+
+  data.forEach(d => {
+    const m = new Date(d.datum).getMonth();
+    if (d.typ === 'aussendienst') counts[m].ad++;
+    else counts[m].tsc++;
+  });
+
+  const maxVal = Math.max(...counts.map(c => c.ad + c.tsc), 1);
+  const container = document.getElementById('monthBars');
+  container.innerHTML = '';
+
+  counts.forEach((c, i) => {
+    const total = c.ad + c.tsc;
+    const adPct = (c.ad / maxVal) * 100;
+    const tscPct = (c.tsc / maxVal) * 100;
+
+    const row = document.createElement('div');
+    row.className = 'month-row';
+    row.innerHTML = `
+      <span class="month-name">${months[i]}</span>
+      <div class="bar-track">
+        <div class="bar-ad" style="width:${adPct}%"></div>
+        <div class="bar-tsc" style="width:${tscPct}%"></div>
+      </div>
+      <span class="bar-count">${total || ''}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function changeYear(delta) {
+  statsYear += delta;
+  document.getElementById('statsYear').textContent = statsYear;
+  loadStats();
+}
+
+// ── History ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div class="loading">Lade Einträge…</div>';
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/fahrten?order=datum.desc&limit=60`,
+      { headers }
+    );
+    const data = await res.json();
+
+    if (!data.length) {
+      list.innerHTML = '<div class="empty">Noch keine Einträge vorhanden.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.forEach(item => {
+      const isAD = item.typ === 'aussendienst';
+      const datum = new Date(item.datum).toLocaleDateString('de-DE', {
+        weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit'
+      });
+      const geld = isAD && item.km
+        ? ((item.km * kmGeldCent) / 100).toFixed(2).replace('.', ',') + ' €'
+        : null;
+
+      const div = document.createElement('div');
+      div.className = `history-item ${isAD ? 'ad' : 'tsc'}`;
+      div.innerHTML = `
+        <div class="h-dot"></div>
+        <div class="h-info">
+          <div class="h-date">${datum}</div>
+          <div class="h-type">${isAD ? '🚗 Außendienst' : '🏢 TSC'}</div>
+        </div>
+        <div class="h-meta">
+          ${item.km ? `<span class="h-km">${item.km} km</span>` : ''}
+          ${item.fahrzeit_minuten ? `<span>${item.fahrzeit_minuten} min</span>` : ''}
+          ${geld ? `<span style="color:var(--accent-a)">${geld}</span>` : ''}
+        </div>
+        <button class="delete-btn" onclick="deleteEntry('${item.id}', this)">✕</button>
+      `;
+      list.appendChild(div);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Fehler beim Laden</div>';
+  }
+}
+
+async function deleteEntry(id, btn) {
+  if (!confirm('Eintrag löschen?')) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/fahrten?id=eq.${id}`, {
+      method: 'DELETE',
+      headers
+    });
+    if (res.ok) {
+      btn.closest('.history-item').remove();
+      showToast('Eintrag gelöscht');
+    }
+  } catch (e) {
+    showToast('Fehler beim Löschen', true);
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
