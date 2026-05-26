@@ -1338,16 +1338,21 @@ async function saveEdit() {
 
 // ── Color Picker ─────────────────────────────────────────────────────────
 const COLORS = [
-  { name: 'Mint',     hex: '#a8d8b0' },
-  { name: 'Sky',      hex: '#a0b8f0' },
-  { name: 'Rose',     hex: '#f0b8c8' },
-  { name: 'Lavender', hex: '#c8b8f0' },
-  { name: 'Peach',    hex: '#f0d0a8' },
-  { name: 'Aqua',     hex: '#80d8d8' },
-  { name: 'Gold',     hex: '#f0c878' },
-  { name: 'Coral',    hex: '#f0a898' },
-  { name: 'Lilac',    hex: '#d8a8f0' },
-  { name: 'Lime',     hex: '#c8e880' },
+  { name: 'Mint',       hex: '#a8d8b0' },
+  { name: 'Sky',        hex: '#a0b8f0' },
+  { name: 'Rose',       hex: '#f0b8c8' },
+  { name: 'Lavender',   hex: '#c8b8f0' },
+  { name: 'Peach',      hex: '#f0d0a8' },
+  { name: 'Aqua',       hex: '#80d8d8' },
+  { name: 'Gold',       hex: '#f0c878' },
+  { name: 'Coral',      hex: '#f0a898' },
+  { name: 'Lilac',      hex: '#d8a8f0' },
+  { name: 'Lime',       hex: '#c8e880' },
+  { name: 'Waldgrün',   hex: '#4a9060' },
+  { name: 'Ozeanblau',  hex: '#3a70c0' },
+  { name: 'Weinrot',    hex: '#b04060' },
+  { name: 'Indigo',     hex: '#6050c0' },
+  { name: 'Amber',      hex: '#c08030' },
 ];
 
 let activeColor = localStorage.getItem('h1color') || '#a8d8b0';
@@ -1379,16 +1384,21 @@ function applyColor(hex, save = true) {
 
 // ── Background Color Picker ───────────────────────────────────────────────
 const BG_COLORS = [
-  { name: 'Nachtblau',   bg: '#1a1f2e', surface: '#222840', surface2: '#2a3050', border: '#343d62', muted: '#7880a8' },
-  { name: 'Dunkelgrün',  bg: '#1a2420', surface: '#1f2e28', surface2: '#273830', border: '#2e4038', muted: '#6a8878' },
-  { name: 'Tiefviolett', bg: '#1e1a2e', surface: '#262040', surface2: '#302850', border: '#3d3462', muted: '#7870a8' },
-  { name: 'Schiefergrau',bg: '#1c1e22', surface: '#242628', surface2: '#2c2e34', border: '#38393f', muted: '#76787e' },
-  { name: 'Dunkelrot',   bg: '#241a1a', surface: '#302020', surface2: '#3a2828', border: '#4a3030', muted: '#907070' },
-  { name: 'Ozean',       bg: '#141e28', surface: '#1a2838', surface2: '#203040', border: '#2a3c50', muted: '#6080a0' },
-  { name: 'Waldnacht',   bg: '#161e18', surface: '#1e2820', surface2: '#263228', border: '#304038', muted: '#688070' },
-  { name: 'Mitternacht', bg: '#0f0f11', surface: '#18181c', surface2: '#222228', border: '#2e2e38', muted: '#7a7a8c' },
-  { name: 'Kakao',       bg: '#201810', surface: '#2a2018', surface2: '#342820', border: '#40302a', muted: '#8a7060' },
-  { name: 'Stahlblau',   bg: '#141824', surface: '#1c2030', surface2: '#242838', border: '#303848', muted: '#6878a0' },
+  { name: 'Nachtblau',   bg: '#1a1f2e', surface: '#222840', surface2: '#2a3050', border: '#343d62', muted: '#7880a8', text: '#e8eaf6' },
+  { name: 'Dunkelgrün',  bg: '#1a2420', surface: '#1f2e28', surface2: '#273830', border: '#2e4038', muted: '#6a8878', text: '#e8f0ec' },
+  { name: 'Tiefviolett', bg: '#1e1a2e', surface: '#262040', surface2: '#302850', border: '#3d3462', muted: '#7870a8', text: '#eee8f6' },
+  { name: 'Schiefergrau',bg: '#1c1e22', surface: '#242628', surface2: '#2c2e34', border: '#38393f', muted: '#76787e', text: '#e8eaec' },
+  { name: 'Dunkelrot',   bg: '#241a1a', surface: '#302020', surface2: '#3a2828', border: '#4a3030', muted: '#907070', text: '#f6e8e8' },
+  { name: 'Ozean',       bg: '#141e28', surface: '#1a2838', surface2: '#203040', border: '#2a3c50', muted: '#6080a0', text: '#e0eaf6' },
+  { name: 'Waldnacht',   bg: '#161e18', surface: '#1e2820', surface2: '#263228', border: '#304038', muted: '#688070', text: '#e4ede6' },
+  { name: 'Mitternacht', bg: '#0f0f11', surface: '#18181c', surface2: '#222228', border: '#2e2e38', muted: '#7a7a8c', text: '#f0eff4' },
+  { name: 'Kakao',       bg: '#201810', surface: '#2a2018', surface2: '#342820', border: '#40302a', muted: '#8a7060', text: '#f4ede8' },
+  { name: 'Stahlblau',   bg: '#141824', surface: '#1c2030', surface2: '#242838', border: '#303848', muted: '#6878a0', text: '#e0e6f4' },
+  { name: 'Cremeweiß',   bg: '#f5f0e8', surface: '#ffffff', surface2: '#f0ebe0', border: '#d8d0c0', muted: '#8a8070', text: '#2a2520' },
+  { name: 'Hellblau',    bg: '#e8f0f8', surface: '#ffffff', surface2: '#ddeaf5', border: '#bcd0e8', muted: '#6888a8', text: '#1a2a3a' },
+  { name: 'Mintgrün',    bg: '#e8f5ee', surface: '#ffffff', surface2: '#d8ede0', border: '#b0d8c0', muted: '#508868', text: '#1a2e22' },
+  { name: 'Lavendel',    bg: '#f0ecf8', surface: '#ffffff', surface2: '#e8e0f5', border: '#ccc0e8', muted: '#7868a8', text: '#22183a' },
+  { name: 'Sandbeige',   bg: '#f5f0e0', surface: '#ffffff', surface2: '#ede8d5', border: '#d0c8a8', muted: '#907850', text: '#2a2010' },
 ];
 
 let activeBg = localStorage.getItem('bgcolor') || '0';
@@ -1420,10 +1430,11 @@ function applyBgColor(idx, save = true) {
   root.style.setProperty('--surface2', c.surface2);
   root.style.setProperty('--border', c.border);
   root.style.setProperty('--muted', c.muted);
+  if (c.text) root.style.setProperty('--text', c.text);
   if (save) localStorage.setItem('bgcolor', idx);
   document.querySelectorAll('#bgColorGrid .color-swatch').forEach((s, i) => {
     s.classList.toggle('active', i === idx);
-    s.style.borderColor = i === idx ? '#e8eaf6' : BG_COLORS[i].border;
+    s.style.borderColor = i === idx ? (c.text || '#e8eaf6') : BG_COLORS[i].border;
   });
 }
 
