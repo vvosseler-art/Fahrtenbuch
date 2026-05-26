@@ -830,6 +830,11 @@
     <div class="color-grid" id="colorGrid"></div>
   </div>
 
+  <div class="card">
+    <div class="card-label">Hintergrundfarbe</div>
+    <div class="color-grid" id="bgColorGrid"></div>
+  </div>
+
     <div class="card" style="margin-top:4px;">
     <div class="card-label">Info</div>
     <div style="font-size:13px; color:var(--muted); font-family:'DM Mono',monospace; line-height:1.6;">
@@ -924,6 +929,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateDateBadge();
   await loadSettings();
   initColorGrid();
+  initBgColorGrid();
   setupInputListeners();
   document.getElementById('statsYear').textContent = statsYear;
 });
@@ -942,7 +948,7 @@ function showPage(name, btn) {
   btn.classList.add('active');
   if (name === 'auswertung') loadStats();
   if (name === 'verlauf') loadHistory();
-  if (name === 'settings') initColorGrid();
+  if (name === 'settings') { initColorGrid(); initBgColorGrid(); }
 }
 
 // ── Type Selection ────────────────────────────────────────────────────────
@@ -1368,6 +1374,56 @@ function applyColor(hex, save = true) {
   if (save) localStorage.setItem('h1color', hex);
   document.querySelectorAll('.color-swatch').forEach(s => {
     s.classList.toggle('active', s.style.background === hex || s.style.backgroundColor === hex);
+  });
+}
+
+// ── Background Color Picker ───────────────────────────────────────────────
+const BG_COLORS = [
+  { name: 'Nachtblau',   bg: '#1a1f2e', surface: '#222840', surface2: '#2a3050', border: '#343d62', muted: '#7880a8' },
+  { name: 'Dunkelgrün',  bg: '#1a2420', surface: '#1f2e28', surface2: '#273830', border: '#2e4038', muted: '#6a8878' },
+  { name: 'Tiefviolett', bg: '#1e1a2e', surface: '#262040', surface2: '#302850', border: '#3d3462', muted: '#7870a8' },
+  { name: 'Schiefergrau',bg: '#1c1e22', surface: '#242628', surface2: '#2c2e34', border: '#38393f', muted: '#76787e' },
+  { name: 'Dunkelrot',   bg: '#241a1a', surface: '#302020', surface2: '#3a2828', border: '#4a3030', muted: '#907070' },
+  { name: 'Ozean',       bg: '#141e28', surface: '#1a2838', surface2: '#203040', border: '#2a3c50', muted: '#6080a0' },
+  { name: 'Waldnacht',   bg: '#161e18', surface: '#1e2820', surface2: '#263228', border: '#304038', muted: '#688070' },
+  { name: 'Mitternacht', bg: '#0f0f11', surface: '#18181c', surface2: '#222228', border: '#2e2e38', muted: '#7a7a8c' },
+  { name: 'Kakao',       bg: '#201810', surface: '#2a2018', surface2: '#342820', border: '#40302a', muted: '#8a7060' },
+  { name: 'Stahlblau',   bg: '#141824', surface: '#1c2030', surface2: '#242838', border: '#303848', muted: '#6878a0' },
+];
+
+let activeBg = localStorage.getItem('bgcolor') || '0';
+
+function initBgColorGrid() {
+  const grid = document.getElementById('bgColorGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const activeIdx = parseInt(activeBg);
+  BG_COLORS.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'color-swatch' + (i === activeIdx ? ' active' : '');
+    div.style.background = `linear-gradient(135deg, ${c.surface} 0%, ${c.bg} 100%)`;
+    div.style.border = `3px solid ${i === activeIdx ? '#e8eaf6' : c.border}`;
+    div.title = c.name;
+    div.innerHTML = '<div class="swatch-check">✓</div>';
+    div.onclick = () => applyBgColor(i);
+    grid.appendChild(div);
+  });
+  applyBgColor(activeIdx, false);
+}
+
+function applyBgColor(idx, save = true) {
+  activeBg = idx;
+  const c = BG_COLORS[idx];
+  const root = document.documentElement;
+  root.style.setProperty('--bg', c.bg);
+  root.style.setProperty('--surface', c.surface);
+  root.style.setProperty('--surface2', c.surface2);
+  root.style.setProperty('--border', c.border);
+  root.style.setProperty('--muted', c.muted);
+  if (save) localStorage.setItem('bgcolor', idx);
+  document.querySelectorAll('#bgColorGrid .color-swatch').forEach((s, i) => {
+    s.classList.toggle('active', i === idx);
+    s.style.borderColor = i === idx ? '#e8eaf6' : BG_COLORS[i].border;
   });
 }
 
