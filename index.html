@@ -606,6 +606,66 @@
 
   .color-swatch.active .swatch-check { display: flex; }
 
+    /* ── Reminder Banner ── */
+  .reminder-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(240,176,80,.12), rgba(240,176,80,.04));
+    border: 1px solid rgba(240,176,80,.35);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    animation: fadeSlideIn .4s cubic-bezier(.34,1.4,.64,1);
+  }
+
+  .reminder-banner.show { display: flex; }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reminder-banner .rb-icon { font-size: 26px; flex-shrink: 0; }
+
+  .reminder-banner .rb-text { flex: 1; }
+
+  .reminder-banner .rb-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #f0b050;
+    margin-bottom: 2px;
+  }
+
+  .reminder-banner .rb-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .reminder-banner .rb-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+
+    .quick-range-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .quick-range-btn:hover { border-color: var(--accent-h1, var(--accent-a)); color: var(--accent-h1, var(--accent-a)); }
+
     .loading {
     text-align: center;
     color: var(--muted);
@@ -680,6 +740,17 @@
     </div>
     <div class="date-badge" id="dateBadge"></div>
   </header>
+
+
+  <!-- Reminder Banner -->
+  <div class="reminder-banner" id="reminderBanner">
+    <span class="rb-icon">⏰</span>
+    <div class="rb-text">
+      <div class="rb-title">Kein Eintrag heute!</div>
+      <div class="rb-sub" id="reminderSub">Vergiss nicht deinen Arbeitstag einzutragen.</div>
+    </div>
+    <button class="rb-close" onclick="dismissReminder()">✕</button>
+  </div>
 
   <!-- Typ Auswahl -->
   <div class="card">
@@ -845,6 +916,54 @@
   </div>
 </section>
 
+<!-- Page: Export -->
+<section class="page" id="page-export">
+  <header style="padding:0; margin-bottom:4px;">
+    <div class="header-title">
+      <span class="label">Datenexport</span>
+      <h1>Ex<span>port</span></h1>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-label">Zeitraum</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Von</label>
+        <input type="date" id="export-from" style="font-size:15px; padding:12px;">
+      </div>
+      <div class="input-group">
+        <label>Bis</label>
+        <input type="date" id="export-to" style="font-size:15px; padding:12px;">
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+      <button class="quick-range-btn" onclick="setRange('month')">Dieser Monat</button>
+      <button class="quick-range-btn" onclick="setRange('lastmonth')">Letzter Monat</button>
+      <button class="quick-range-btn" onclick="setRange('year')">Dieses Jahr</button>
+      <button class="quick-range-btn" onclick="setRange('all')">Alles</button>
+    </div>
+  </div>
+
+  <div class="card" id="export-preview-card" style="display:none;">
+    <div class="card-label">Vorschau</div>
+    <div id="export-preview-text" style="font-size:13px; font-family:'JetBrains Mono',monospace; color:var(--muted); line-height:1.8;"></div>
+  </div>
+
+  <button class="btn-submit" id="btn-export-preview" onclick="loadExportPreview()" style="background:var(--surface2); color:var(--text); border:1px solid var(--border);">
+    <span>🔍</span> Vorschau laden
+  </button>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+    <button class="btn-submit" id="btn-export-csv" onclick="exportCSV()" disabled style="font-size:14px;">
+      <span>📊</span> CSV
+    </button>
+    <button class="btn-submit" id="btn-export-pdf" onclick="exportPDF()" disabled style="font-size:14px; background:var(--accent-b); color:#fff;">
+      <span>📄</span> PDF
+    </button>
+  </div>
+</section>
+
 <!-- Edit Modal -->
 <div class="modal-backdrop" id="editModal" onclick="closeEditModal(event)">
   <div class="modal">
@@ -902,8 +1021,11 @@
   <button onclick="showPage('verlauf', this)">
     <span class="icon">📋</span>Verlauf
   </button>
+  <button onclick="showPage('export', this)">
+    <span class="icon">📤</span>Export
+  </button>
   <button onclick="showPage('settings', this)">
-    <span class="icon">⚙️</span>Einstellungen
+    <span class="icon">⚙️</span>Einst.
   </button>
 </nav>
 
@@ -930,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   initColorGrid();
   initBgColorGrid();
+  checkTodayEntry();
   setupInputListeners();
   document.getElementById('statsYear').textContent = statsYear;
 });
@@ -938,6 +1061,39 @@ function updateDateBadge() {
   const now = new Date();
   const opts = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
   document.getElementById('dateBadge').textContent = now.toLocaleDateString('de-DE', opts);
+}
+
+// ── Reminder Check ───────────────────────────────────────────────────────
+async function checkTodayEntry() {
+  const today = new Date().toISOString().split('T')[0];
+  const dismissed = localStorage.getItem('reminderDismissed');
+  if (dismissed === today) return; // already dismissed today
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/fahrten?datum=eq.${today}&limit=1`,
+      { headers }
+    );
+    const data = await res.json();
+
+    if (!data.length) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('reminderSub').textContent =
+        `Noch kein Eintrag für heute (${timeStr} Uhr)`;
+      document.getElementById('reminderBanner').classList.add('show');
+    } else {
+      document.getElementById('reminderBanner').classList.remove('show');
+    }
+  } catch (e) {
+    // silently fail
+  }
+}
+
+function dismissReminder() {
+  const today = new Date().toISOString().split('T')[0];
+  localStorage.setItem('reminderDismissed', today);
+  document.getElementById('reminderBanner').classList.remove('show');
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────
@@ -949,6 +1105,7 @@ function showPage(name, btn) {
   if (name === 'auswertung') loadStats();
   if (name === 'verlauf') loadHistory();
   if (name === 'settings') { initColorGrid(); initBgColorGrid(); }
+  if (name === 'export') { initExportDates(); }
 }
 
 // ── Type Selection ────────────────────────────────────────────────────────
@@ -1083,6 +1240,8 @@ async function submitEintrag() {
 
     if (res.ok || res.status === 201) {
       showToast('✓ Eintrag gespeichert!');
+      document.getElementById('reminderBanner').classList.remove('show');
+      localStorage.setItem('reminderDismissed', new Date().toISOString().split('T')[0]);
       // Reset
       selectedType = null;
       document.getElementById('btn-ad').classList.remove('selected-ad');
@@ -1436,6 +1595,209 @@ function applyBgColor(idx, save = true) {
     s.classList.toggle('active', i === idx);
     s.style.borderColor = i === idx ? (c.text || '#e8eaf6') : BG_COLORS[i].border;
   });
+}
+
+// ── Export ───────────────────────────────────────────────────────────────
+let exportData = [];
+
+function initExportDates() {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const today = now.toISOString().split('T')[0];
+  if (!document.getElementById('export-from').value) {
+    document.getElementById('export-from').value = firstDay;
+    document.getElementById('export-to').value = today;
+  }
+  exportData = [];
+  document.getElementById('export-preview-card').style.display = 'none';
+  document.getElementById('btn-export-csv').disabled = true;
+  document.getElementById('btn-export-pdf').disabled = true;
+}
+
+function setRange(range) {
+  const now = new Date();
+  let from, to;
+  if (range === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = now;
+  } else if (range === 'lastmonth') {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    to = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if (range === 'year') {
+    from = new Date(now.getFullYear(), 0, 1);
+    to = now;
+  } else {
+    from = new Date(2020, 0, 1);
+    to = now;
+  }
+  document.getElementById('export-from').value = from.toISOString().split('T')[0];
+  document.getElementById('export-to').value = to.toISOString().split('T')[0];
+  exportData = [];
+  document.getElementById('export-preview-card').style.display = 'none';
+  document.getElementById('btn-export-csv').disabled = true;
+  document.getElementById('btn-export-pdf').disabled = true;
+}
+
+async function loadExportPreview() {
+  const from = document.getElementById('export-from').value;
+  const to = document.getElementById('export-to').value;
+  if (!from || !to) { showToast('Bitte Zeitraum wählen', true); return; }
+
+  const btn = document.getElementById('btn-export-preview');
+  btn.innerHTML = '<span>⏳</span> Lade…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/fahrten?datum=gte.${from}&datum=lte.${to}&order=datum.asc`,
+      { headers }
+    );
+    exportData = await res.json();
+
+    if (!exportData.length) {
+      showToast('Keine Einträge im Zeitraum', true);
+      btn.innerHTML = '<span>🔍</span> Vorschau laden';
+      btn.disabled = false;
+      return;
+    }
+
+    const adCount = exportData.filter(d => d.typ === 'aussendienst').length;
+    const tscCount = exportData.filter(d => d.typ === 'tsc').length;
+    const totalKm = exportData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+    const totalGeld = (totalKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
+
+    document.getElementById('export-preview-text').innerHTML =
+      `Einträge gesamt: <b style="color:var(--text)">${exportData.length}</b><br>` +
+      `Außendienst: <b style="color:var(--accent-a)">${adCount} Tage</b><br>` +
+      `TSC: <b style="color:var(--accent-b)">${tscCount} Tage</b><br>` +
+      `Gesamt km: <b style="color:var(--text)">${totalKm.toLocaleString('de-DE')}</b><br>` +
+      `Km-Geld: <b style="color:var(--accent-h1, var(--accent-a))">${totalGeld} €</b>`;
+
+    document.getElementById('export-preview-card').style.display = 'block';
+    document.getElementById('btn-export-csv').disabled = false;
+    document.getElementById('btn-export-pdf').disabled = false;
+  } catch (e) {
+    showToast('Fehler beim Laden', true);
+  }
+
+  btn.innerHTML = '<span>🔍</span> Vorschau laden';
+  btn.disabled = false;
+}
+
+function exportCSV() {
+  if (!exportData.length) return;
+  const from = document.getElementById('export-from').value;
+  const to = document.getElementById('export-to').value;
+
+  const rows = [['Datum', 'Wochentag', 'Typ', 'Kilometer', 'Fahrzeit (min)', 'Km-Geld (€)']];
+  exportData.forEach(d => {
+    const date = new Date(d.datum);
+    const wochentag = date.toLocaleDateString('de-DE', { weekday: 'long' });
+    const geld = d.typ === 'aussendienst' && d.km
+      ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',')
+      : '';
+    rows.push([
+      date.toLocaleDateString('de-DE'),
+      wochentag,
+      d.typ === 'aussendienst' ? 'Außendienst' : 'TSC',
+      d.km || '',
+      d.fahrzeit_minuten || '',
+      geld
+    ]);
+  });
+
+  // Summary row
+  const totalKm = exportData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+  const totalGeld = (totalKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
+  rows.push([]);
+  rows.push(['Gesamt', '', '', totalKm, '', totalGeld]);
+
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fahrtenbuch_${from}_${to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ CSV heruntergeladen');
+}
+
+function exportPDF() {
+  if (!exportData.length) return;
+  const from = document.getElementById('export-from').value;
+  const to = document.getElementById('export-to').value;
+
+  const fromFmt = new Date(from).toLocaleDateString('de-DE');
+  const toFmt = new Date(to).toLocaleDateString('de-DE');
+
+  const adCount = exportData.filter(d => d.typ === 'aussendienst').length;
+  const tscCount = exportData.filter(d => d.typ === 'tsc').length;
+  const totalKm = exportData.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+  const totalGeld = (totalKm * kmGeldCent / 100).toFixed(2).replace('.', ',');
+
+  const rows = exportData.map(d => {
+    const date = new Date(d.datum).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
+    const typ = d.typ === 'aussendienst' ? '🚗 Außendienst' : '🏢 TSC';
+    const km = d.km ? d.km + ' km' : '–';
+    const zeit = d.fahrzeit_minuten ? d.fahrzeit_minuten + ' min' : '–';
+    const geld = d.typ === 'aussendienst' && d.km
+      ? (d.km * kmGeldCent / 100).toFixed(2).replace('.', ',') + ' €'
+      : '–';
+    const bg = d.typ === 'aussendienst' ? '#fff8e8' : '#f0f4ff';
+    return `<tr style="background:${bg}">
+      <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px;">${date}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px; font-weight:700;">${typ}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px; text-align:right;">${km}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px; text-align:right;">${zeit}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #eee; font-size:13px; text-align:right; font-weight:700; color:#c07000;">${geld}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; padding: 30px; color: #222; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .summary { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sum-box { background: #f5f5f5; border-radius: 8px; padding: 12px 18px; }
+  .sum-box .val { font-size: 20px; font-weight: bold; }
+  .sum-box .lbl { font-size: 11px; color: #888; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #222; color: #fff; padding: 9px 10px; font-size: 12px; text-align: left; }
+  th:last-child, th:nth-child(3), th:nth-child(4) { text-align: right; }
+  .total-row td { background: #222; color: #fff; padding: 9px 10px; font-weight: bold; font-size: 13px; }
+  @media print { body { padding: 10px; } }
+</style>
+</head><body>
+<h1>📋 Fahrtenbuch</h1>
+<div class="sub">Zeitraum: ${fromFmt} – ${toFmt} · Km-Geld: ${kmGeldCent} ct/km</div>
+<div class="summary">
+  <div class="sum-box"><div class="val" style="color:#c07000">${adCount}</div><div class="lbl">Außendienst-Tage</div></div>
+  <div class="sum-box"><div class="val" style="color:#3060c0">${tscCount}</div><div class="lbl">TSC-Tage</div></div>
+  <div class="sum-box"><div class="val">${totalKm.toLocaleString('de-DE')}</div><div class="lbl">Gesamt km</div></div>
+  <div class="sum-box"><div class="val" style="color:#207040">${totalGeld} €</div><div class="lbl">Km-Geld gesamt</div></div>
+</div>
+<table>
+<thead><tr>
+  <th>Datum</th><th>Typ</th><th style="text-align:right">km</th>
+  <th style="text-align:right">Fahrzeit</th><th style="text-align:right">Km-Geld</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr class="total-row">
+  <td colspan="2">Gesamt</td>
+  <td style="text-align:right">${totalKm.toLocaleString('de-DE')} km</td>
+  <td></td>
+  <td style="text-align:right">${totalGeld} €</td>
+</tr></tfoot>
+</table>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
