@@ -666,6 +666,58 @@
   }
   .quick-range-btn:hover { border-color: var(--accent-h1, var(--accent-a)); color: var(--accent-h1, var(--accent-a)); }
 
+    .forecast-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .forecast-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .forecast-row .fr-period {
+    font-size: 13px;
+    font-weight: 800;
+    min-width: 80px;
+  }
+
+  .forecast-row .fr-stats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .forecast-row .fr-days {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .forecast-row .fr-geld {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent-h1, var(--accent-a));
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .forecast-row .fr-km {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+  }
+
     .loading {
     text-align: center;
     color: var(--muted);
@@ -854,6 +906,14 @@
       </div>
     </div>
   </div>
+  <!-- Hochrechnung -->
+  <div class="card" id="forecast-card">
+    <div class="card-label">Hochrechnung (Basis: Ø dieses Jahr)</div>
+    <div class="forecast-grid" id="forecastGrid">
+      <div class="loading">Lade…</div>
+    </div>
+  </div>
+
 </section>
 
 <!-- Page: Verlauf -->
@@ -1272,6 +1332,7 @@ async function loadStats() {
   document.getElementById('stat-total-km').textContent = '–';
   document.getElementById('stat-total-geld').textContent = '–';
   document.getElementById('monthBars').innerHTML = '<div class="loading">Lade Daten…</div>';
+  document.getElementById('forecastGrid').innerHTML = '<div class="loading">Lade…</div>';
 
   try {
     const from = `${statsYear}-01-01`;
@@ -1294,6 +1355,7 @@ async function loadStats() {
       totalGeld.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
     renderMonthBars(data);
+    renderForecast(data);
   } catch (e) {
     document.getElementById('monthBars').innerHTML = '<div class="empty">Fehler beim Laden</div>';
   }
@@ -1329,6 +1391,71 @@ function renderMonthBars(data) {
       <span class="bar-count">${total || ''}</span>
     `;
     container.appendChild(row);
+  });
+}
+
+
+function renderForecast(data) {
+  const grid = document.getElementById('forecastGrid');
+
+  // Only use months that have at least 1 entry for average calculation
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-based
+  const currentYear = now.getFullYear();
+
+  // If viewing a past year, use all 12 months; if current year, use months so far
+  const monthsElapsed = statsYear < currentYear ? 12 : Math.max(currentMonth, 1);
+
+  const totalAD = data.filter(d => d.typ === 'aussendienst').length;
+  const totalTSC = data.filter(d => d.typ === 'tsc').length;
+  const totalKm = data.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+  const totalDays = totalAD + totalTSC;
+
+  if (totalDays === 0) {
+    grid.innerHTML = '<div class="empty">Noch zu wenig Daten für eine Hochrechnung.</div>';
+    return;
+  }
+
+  // Monthly averages
+  const avgAD = totalAD / monthsElapsed;
+  const avgTSC = totalTSC / monthsElapsed;
+  const avgKm = totalKm / monthsElapsed;
+  const avgGeld = (avgKm * kmGeldCent) / 100;
+
+  const periods = [
+    { label: '3 Monate', months: 3 },
+    { label: '6 Monate', months: 6 },
+    { label: '1 Jahr',   months: 12 },
+  ];
+
+  grid.innerHTML = '';
+
+  // Show basis info
+  const basisDiv = document.createElement('div');
+  basisDiv.style.cssText = 'font-size:11px; color:var(--muted); font-family:"JetBrains Mono",monospace; margin-bottom:4px;';
+  basisDiv.textContent = `Basis: Ø ${avgAD.toFixed(1)} AD-Tage, ${Math.round(avgKm)} km pro Monat (${monthsElapsed} Monate)`;
+  grid.appendChild(basisDiv);
+
+  periods.forEach(p => {
+    const pAD = Math.round(avgAD * p.months);
+    const pTSC = Math.round(avgTSC * p.months);
+    const pKm = Math.round(avgKm * p.months);
+    const pGeld = (pKm * kmGeldCent / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const row = document.createElement('div');
+    row.className = 'forecast-row';
+    row.innerHTML = `
+      <span class="fr-period">${p.label}</span>
+      <div class="fr-stats">
+        <span class="fr-days">🚗 ${pAD} AD · 🏢 ${pTSC} TSC</span>
+        <span class="fr-days">📍 ${pKm.toLocaleString('de-DE')} km</span>
+      </div>
+      <div>
+        <div class="fr-geld">${pGeld} €</div>
+        <div class="fr-km">Km-Geld</div>
+      </div>
+    `;
+    grid.appendChild(row);
   });
 }
 
