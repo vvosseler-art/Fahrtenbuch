@@ -827,7 +827,7 @@
     <div class="card-label">Details</div>
     <div class="input-row">
       <div class="input-group" id="km-group">
-        <label>Kilometer</label>
+        <label id="km-label">Kilometer</label>
         <input type="number" inputmode="numeric" id="inp-km" placeholder="0" min="0">
       </div>
       <div class="input-group">
@@ -883,7 +883,12 @@
     <div class="stat-card km">
       <span class="s-icon">📍</span>
       <span class="s-value" id="stat-total-km">–</span>
-      <span class="s-label">Gesamt km</span>
+      <span class="s-label">AD km gesamt</span>
+    </div>
+    <div class="stat-card tsc">
+      <span class="s-icon">📍</span>
+      <span class="s-value" id="stat-tsc-km">–</span>
+      <span class="s-label">TSC km gesamt</span>
     </div>
     <div class="stat-card full" style="background: linear-gradient(135deg, rgba(240,192,64,.08), rgba(240,192,64,.02)); border-color: rgba(240,192,64,.2);">
       <span class="s-icon">💰</span>
@@ -1198,14 +1203,15 @@ function selectType(type) {
     document.getElementById('btn-submit').innerHTML = '<span>💾</span> Eintrag speichern';
     kmGroup.style.opacity = '1';
     document.getElementById('inp-km').disabled = false;
+    document.getElementById('km-label').textContent = 'Kilometer (km-Geld)';
   } else {
     document.getElementById('btn-tsc').classList.add('selected-tsc');
     document.getElementById('btn-submit').className = 'btn-submit tsc';
     document.getElementById('btn-submit').innerHTML = '<span>💾</span> Eintrag speichern';
-    kmGroup.style.opacity = '0.4';
-    document.getElementById('inp-km').disabled = true;
-    document.getElementById('inp-km').value = '';
+    kmGroup.style.opacity = '1';
+    document.getElementById('inp-km').disabled = false;
     document.getElementById('km-preview').classList.add('hidden');
+    document.getElementById('km-label').textContent = 'Kilometer (kein km-Geld)';
   }
   updateSubmitState();
   updateKmPreview();
@@ -1290,9 +1296,7 @@ async function saveSettings() {
 
 // ── Submit ────────────────────────────────────────────────────────────────
 async function submitEintrag() {
-  const km = selectedType === 'aussendienst'
-    ? (parseInt(document.getElementById('inp-km').value) || null)
-    : null;
+  const km = parseInt(document.getElementById('inp-km').value) || null;
   const zeit = parseInt(document.getElementById('inp-zeit').value) || null;
 
   if (!selectedType || !zeit) return;
@@ -1347,6 +1351,7 @@ async function loadStats() {
   document.getElementById('stat-ad-days').textContent = '–';
   document.getElementById('stat-tsc-days').textContent = '–';
   document.getElementById('stat-total-km').textContent = '–';
+  document.getElementById('stat-tsc-km').textContent = '–';
   document.getElementById('stat-total-geld').textContent = '–';
   document.getElementById('monthBars').innerHTML = '<div class="loading">Lade Daten…</div>';
   document.getElementById('forecastGrid').innerHTML = '<div class="loading">Lade…</div>';
@@ -1364,11 +1369,13 @@ async function loadStats() {
     const adDays = data.filter(d => d.typ === 'aussendienst').length;
     const tscDays = data.filter(d => d.typ === 'tsc').length;
     const totalKm = data.filter(d => d.typ === 'aussendienst').reduce((s, d) => s + (d.km || 0), 0);
+    const tscKm = data.filter(d => d.typ === 'tsc').reduce((s, d) => s + (d.km || 0), 0);
     const totalGeld = (totalKm * kmGeldCent) / 100;
 
     document.getElementById('stat-ad-days').textContent = adDays;
     document.getElementById('stat-tsc-days').textContent = tscDays;
     document.getElementById('stat-total-km').textContent = totalKm.toLocaleString('de-DE');
+    document.getElementById('stat-tsc-km').textContent = tscKm.toLocaleString('de-DE');
     document.getElementById('stat-total-geld').textContent =
       totalGeld.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
@@ -1694,13 +1701,11 @@ function openEditModal(item) {
 
   if (item.typ === 'aussendienst') {
     document.getElementById('edit-btn-ad').classList.add('selected-ad');
-    document.getElementById('edit-km-group').style.opacity = '1';
-    document.getElementById('edit-km').disabled = false;
   } else {
     document.getElementById('edit-btn-tsc').classList.add('selected-tsc');
-    document.getElementById('edit-km-group').style.opacity = '0.4';
-    document.getElementById('edit-km').disabled = true;
   }
+  document.getElementById('edit-km-group').style.opacity = '1';
+  document.getElementById('edit-km').disabled = false;
 
   document.getElementById('editModal').classList.add('open');
 }
@@ -1719,23 +1724,18 @@ function editSelectType(type) {
 
   if (type === 'aussendienst') {
     document.getElementById('edit-btn-ad').classList.add('selected-ad');
-    document.getElementById('edit-km-group').style.opacity = '1';
-    document.getElementById('edit-km').disabled = false;
   } else {
     document.getElementById('edit-btn-tsc').classList.add('selected-tsc');
-    document.getElementById('edit-km-group').style.opacity = '0.4';
-    document.getElementById('edit-km').disabled = true;
-    document.getElementById('edit-km').value = '';
   }
+  document.getElementById('edit-km-group').style.opacity = '1';
+  document.getElementById('edit-km').disabled = false;
 }
 
 async function saveEdit() {
   if (!editingId || !editingType) return;
 
   const datum = document.getElementById('edit-datum').value;
-  const km = editingType === 'aussendienst'
-    ? (parseInt(document.getElementById('edit-km').value) || null)
-    : null;
+  const km = parseInt(document.getElementById('edit-km').value) || null;
   const zeit = parseInt(document.getElementById('edit-zeit').value) || null;
 
   if (!datum || !zeit) { showToast('Datum und Fahrzeit erforderlich', true); return; }
@@ -2086,7 +2086,6 @@ function exportPDF(byMonth) {
   .total-row td { background: #222; color: #fff; padding: 9px 10px; font-weight: bold; font-size: 13px; }
   @media print { body { padding: 10px; } }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head><body>
 <h1>📋 Fahrtenbuch</h1>
 <div class="sub">Zeitraum: ${fromFmt} – ${toFmt} · Km-Geld: ${kmGeldCent} ct/km</div>
