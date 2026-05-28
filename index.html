@@ -777,6 +777,7 @@
     flex-shrink: 0;
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -906,6 +907,22 @@
       </div>
     </div>
   </div>
+  <!-- Hochrechnung Chart -->
+  <div class="card" id="forecast-chart-card">
+    <div class="card-label">Km-Geld Verlauf &amp; Hochrechnung</div>
+    <div style="position:relative; width:100%; height:220px;">
+      <canvas id="forecastCanvas"></canvas>
+    </div>
+    <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;">
+        <div style="width:24px;height:3px;background:var(--accent-h1, var(--accent-a));border-radius:2px;"></div> Ist-Daten
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;">
+        <div style="width:24px;height:3px;background:var(--accent-b);border-radius:2px; border-top: 2px dashed var(--accent-b);"></div> Hochrechnung
+      </div>
+    </div>
+  </div>
+
   <!-- Hochrechnung -->
   <div class="card" id="forecast-card">
     <div class="card-label">Hochrechnung (Basis: Ø dieses Jahr)</div>
@@ -1333,6 +1350,7 @@ async function loadStats() {
   document.getElementById('stat-total-geld').textContent = '–';
   document.getElementById('monthBars').innerHTML = '<div class="loading">Lade Daten…</div>';
   document.getElementById('forecastGrid').innerHTML = '<div class="loading">Lade…</div>';
+  if (forecastChartInstance) { forecastChartInstance.destroy(); forecastChartInstance = null; }
 
   try {
     const from = `${statsYear}-01-01`;
@@ -1456,6 +1474,134 @@ function renderForecast(data) {
       </div>
     `;
     grid.appendChild(row);
+  });
+
+  // Draw chart
+  drawForecastChart(data, avgKm, avgGeld, monthsElapsed);
+}
+
+let forecastChartInstance = null;
+
+function drawForecastChart(data, avgKm, avgGeld, monthsElapsed) {
+  const canvas = document.getElementById('forecastCanvas');
+  if (!canvas) return;
+
+  // Build monthly actual data
+  const monthlyGeld = {};
+  data.filter(d => d.typ === 'aussendienst').forEach(d => {
+    const key = d.datum.substring(0, 7);
+    monthlyGeld[key] = (monthlyGeld[key] || 0) + (d.km || 0) * kmGeldCent / 100;
+  });
+
+  const sortedMonths = Object.keys(monthlyGeld).sort();
+  const actualLabels = sortedMonths.map(k => {
+    const [y, m] = k.split('-');
+    return new Date(y, m - 1).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
+  });
+  const actualValues = sortedMonths.map(k => parseFloat(monthlyGeld[k].toFixed(2)));
+
+  // Forecast: next 12 months from now
+  const now = new Date();
+  const forecastLabels = [];
+  const forecastValues = [];
+  for (let i = 1; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    forecastLabels.push(d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }));
+    forecastValues.push(parseFloat(avgGeld.toFixed(2)));
+  }
+
+  // Combine labels: actual + forecast (no overlap)
+  const allLabels = [...actualLabels, ...forecastLabels];
+  const actualData = [...actualValues, ...new Array(forecastLabels.length).fill(null)];
+  const forecastData = [...new Array(actualValues.length - 1).fill(null), actualValues[actualValues.length - 1], ...forecastValues];
+
+  // Get CSS colors
+  const style = getComputedStyle(document.documentElement);
+  const colorA = style.getPropertyValue('--accent-h1').trim() || style.getPropertyValue('--accent-a').trim() || '#a8d8b0';
+  const colorB = style.getPropertyValue('--accent-b').trim() || '#a0b8f0';
+  const colorMuted = style.getPropertyValue('--muted').trim() || '#7880a8';
+  const colorSurface2 = style.getPropertyValue('--surface2').trim() || '#2a3050';
+  const colorText = style.getPropertyValue('--text').trim() || '#e8eaf6';
+
+  if (forecastChartInstance) { forecastChartInstance.destroy(); forecastChartInstance = null; }
+
+  const ctx = canvas.getContext('2d');
+
+  // Gradient for actual line
+  const gradA = ctx.createLinearGradient(0, 0, 0, 200);
+  gradA.addColorStop(0, colorA + '55');
+  gradA.addColorStop(1, colorA + '00');
+
+  forecastChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: 'Ist-Daten',
+          data: actualData,
+          borderColor: colorA,
+          backgroundColor: gradA,
+          borderWidth: 2.5,
+          pointBackgroundColor: colorA,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.35,
+          fill: true,
+          spanGaps: false,
+        },
+        {
+          label: 'Hochrechnung',
+          data: forecastData,
+          borderColor: colorB,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointBackgroundColor: colorB,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.35,
+          fill: false,
+          spanGaps: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: colorSurface2,
+          borderColor: colorA + '55',
+          borderWidth: 1,
+          titleColor: colorText,
+          bodyColor: colorMuted,
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y === null) return null;
+              return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2).replace('.', ',')} €`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: colorSurface2 },
+          ticks: { color: colorMuted, font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 45 }
+        },
+        y: {
+          grid: { color: colorSurface2 },
+          ticks: {
+            color: colorMuted,
+            font: { family: 'JetBrains Mono', size: 10 },
+            callback: v => v.toFixed(0) + ' €'
+          }
+        }
+      }
+    }
   });
 }
 
@@ -1940,6 +2086,7 @@ function exportPDF(byMonth) {
   .total-row td { background: #222; color: #fff; padding: 9px 10px; font-weight: bold; font-size: 13px; }
   @media print { body { padding: 10px; } }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head><body>
 <h1>📋 Fahrtenbuch</h1>
 <div class="sub">Zeitraum: ${fromFmt} – ${toFmt} · Km-Geld: ${kmGeldCent} ct/km</div>
